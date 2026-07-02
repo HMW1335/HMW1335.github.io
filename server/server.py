@@ -1,19 +1,23 @@
-import socketio
-import uvicorn
+import asyncio
+import websockets
+import os
 
-# Create a Socket.IO server
-sio = socketio.AsyncServer(async_mode='asgi', cors_allowed_origins='*')
-app = socketio.ASGIApp(sio)
-
-@sio.event
-async def connect(sid, environ):
+# This is a raw WebSocket server that TurboWarp expects
+async def handler(websocket):
     print("TurboWarp connected!")
+    try:
+        async for message in websocket:
+            print(f"Received: {message}")
+            # Echo back to the client
+            await websocket.send(message)
+    except websockets.exceptions.ConnectionClosed:
+        print("TurboWarp disconnected")
 
-@sio.event
-async def message(sid, data):
-    print(f"Message received: {data}")
-    # This broadcasts the message to everyone else connected instantly
-    await sio.emit('message', data)
+async def main():
+    port = int(os.environ.get("PORT", 10000))
+    async with websockets.serve(handler, "0.0.0.0", port):
+        print(f"Server started on port {port}")
+        await asyncio.Future()  # Run forever
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=10000)
+    asyncio.run(main())
